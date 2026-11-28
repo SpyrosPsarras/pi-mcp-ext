@@ -25,7 +25,7 @@ import type {
 import type { AutocompleteItem } from "@earendil-works/pi-tui";
 import { Type, type Static, type TUnsafe } from "typebox";
 
-import { mcpNamespace } from "./config.ts";
+import { mcpNamespace, skillAutoApprove } from "./config.ts";
 import { parseSlashPromptInput, type PromptDescriptor } from "./prompts.ts";
 import {
   clearMcpStatus,
@@ -1315,6 +1315,7 @@ export default function extension(pi: ExtensionAPI): void {
               }
               const loaded = await session.skills.load(server, params.uri, {
                 ...logOpts,
+                autoApprove: skillAutoApprove(server),
                 approve: ctx?.hasUI
                   ? async ({ server, entry, fileCount, totalBytes }) => {
                       const dynamicNote =

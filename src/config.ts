@@ -311,6 +311,11 @@ export function shouldConnect(
   return true;
 }
 
+/** Whether `PI_MCP_EXT_SKILL_AUTO_APPROVE` lists this server, so its skills load without the approval prompt. */
+export function skillAutoApprove(server: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  return serverNameSet(env.PI_MCP_EXT_SKILL_AUTO_APPROVE)?.has(server) ?? false;
+}
+
 /** `ext` is read from the raw entry because validation strips unknown keys. */
 function rawExt(raw: unknown): boolean | undefined {
   if (!record(raw) || !Object.prototype.hasOwnProperty.call(raw, "ext")) return undefined;

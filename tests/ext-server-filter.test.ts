@@ -5,9 +5,18 @@ import { join } from "node:path";
 import test from "node:test";
 import { CONFIG_DIR_NAME, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 
-import { loadServerConfigs, serverNameSet, shouldConnect } from "../src/config.ts";
+import { loadServerConfigs, serverNameSet, shouldConnect, skillAutoApprove } from "../src/config.ts";
 import { createMcpSession, shouldKeepConnection, type McpSession } from "../src/session.ts";
 import type { ConfigLoadOptions, ServerEra } from "../src/types.ts";
+
+test("PI_MCP_EXT_SKILL_AUTO_APPROVE lists the servers whose skills load without approval", () => {
+  const env = { PI_MCP_EXT_SKILL_AUTO_APPROVE: " skills, team ," } as NodeJS.ProcessEnv;
+  assert.equal(skillAutoApprove("skills", env), true);
+  assert.equal(skillAutoApprove("team", env), true);
+  assert.equal(skillAutoApprove("other", env), false);
+  assert.equal(skillAutoApprove("skills", {} as NodeJS.ProcessEnv), false);
+  assert.equal(skillAutoApprove("skills", { PI_MCP_EXT_SKILL_AUTO_APPROVE: " , " } as NodeJS.ProcessEnv), false);
+});
 
 test("ext is carried from raw JSON, project overrides, and include/exclude filters", async () => {
   const root = mkdtempSync(join(tmpdir(), "mcp-ext-filter-"));

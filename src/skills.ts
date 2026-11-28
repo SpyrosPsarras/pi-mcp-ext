@@ -94,6 +94,7 @@ export interface SkillsEngineApi {
     server: string,
     uri: string,
     opts?: LogOpts & {
+      autoApprove?: boolean;
       approve?: (info: {
         server: string;
         entry: SkillEntry;
@@ -486,6 +487,7 @@ export function createSkillsEngine(host: EngineHost): SkillsEngineApi {
     server: string,
     uri: string,
     opts?: LogOpts & {
+      autoApprove?: boolean;
       approve?: (info: {
         server: string;
         entry: SkillEntry;
@@ -497,10 +499,15 @@ export function createSkillsEngine(host: EngineHost): SkillsEngineApi {
     const client = requireSkillsClient(server);
     const k = entryKey(server, uri);
     const entry = retained.get(k) ?? (await get(server, uri, opts));
+    if (opts?.autoApprove && entry.uri !== uri) {
+      throw new Error(
+        `MCP server "${server}" returned "${entry.uri}" for "${uri}"; auto-approval covers only the requested skill.`,
+      );
+    }
 
     const fp = approvalFingerprint(server, entry);
     const alreadyApproved = fp !== undefined && approvedFingerprints.has(fp);
-    if (!alreadyApproved) {
+    if (!alreadyApproved && !opts?.autoApprove) {
       if (!opts?.approve) {
         throw new Error(
           `Cannot load unapproved MCP skill "${entry.frontmatter.name}" from "${server}": interactive user approval is required.`,

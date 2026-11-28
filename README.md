@@ -89,6 +89,8 @@ Discover, verify, approve, and load Agent Skills over MCP (`io.modelcontextproto
 - `path?: string` — relative path or URI within the retained skill manifest (for `read_file`).
 - `cursor?: string` — pagination cursor for `directory`.
 
+`load` asks for approval the first time a skill version loads in a session, and on every load of a dynamic skill. When approval is needed and Pi has no UI, the load fails. To trust a server's skills, list its name in `PI_MCP_EXT_SKILL_AUTO_APPROVE` (comma-separated). Its skills, dynamic ones included, then load without the prompt, also headless. The 16 MiB limit and the frontmatter check still apply to every load, and skills with a file manifest still get their size and SHA-256 checks. A server that answers with a different skill URI than the one requested is refused. These loads are not recorded as session approvals, so removing a name brings the prompt back.
+
 The extension lists each connected server's skills when it connects and again before a run once the listing is older than its `ttlMs`, waiting at most 2 seconds and keeping the last listing on failure. Before every run it adds an `mcp_skills` section to the system prompt with each skill's server, name, URI and description (up to 100 skills per server, descriptions cut at 1024 characters), so the model can load a matching skill on its own. Skills with `disable-model-invocation: true` stay out of that section. Typing `/mcp-skill:<server>:<skill> [request]` loads the skill without the approval prompt, with the same size, digest and frontmatter checks, and sends it with your request.
 
 ## OAuth 2.0 Client Credentials (`clientCredentials`)

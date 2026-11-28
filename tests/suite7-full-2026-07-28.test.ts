@@ -1011,6 +1011,56 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     const probeReads = await triggerTool.execute("c-10", { action: "noop" }, undefined, undefined, ctx);
     assert.match(probeReads.content[0].text, /reads=0/, "skills/list must NOT eagerly fetch skill files");
 
+    const dirListing = JSON.parse(
+      (
+        await skillsTool.execute(
+          "c-11",
+          { action: "directory", server: "pure26", uri: "skill://code-audit" },
+          undefined,
+          undefined,
+          ctx,
+        )
+      ).content[0].text,
+    );
+    assert.deepEqual(
+      dirListing.resources.map((r: any) => r.name).sort(),
+      ["SKILL.md", "references"],
+    );
+
+    process.env.PI_MCP_EXT_SKILL_AUTO_APPROVE = "pure26";
+    skillConfirmApprove = false;
+    const autoLoaded = JSON.parse(
+      (
+        await skillsTool.execute(
+          "c-12a",
+          { action: "load", server: "pure26", uri: "skill://code-audit/SKILL.md" },
+          undefined,
+          undefined,
+          ctx,
+        )
+      ).content[0].text,
+    );
+    assert.equal(autoLoaded.name, "code-audit", "a listed server loads without the confirm dialog");
+    assert.equal(
+      sessionEntries.filter((e) => e.customType === "mcp-ext:skill-approvals").length,
+      0,
+      "auto-approved loads are not recorded as session approvals",
+    );
+    delete process.env.PI_MCP_EXT_SKILL_AUTO_APPROVE;
+    await assert.rejects(
+      () =>
+        skillsTool.execute(
+          "c-12b",
+          { action: "load", server: "pure26", uri: "skill://code-audit/SKILL.md" },
+          undefined,
+          undefined,
+          ctx,
+        ),
+      /User declined/,
+      "removing the server from the list brings the prompt back",
+    );
+    skillConfirmApprove = true;
+
     skillConfirmApprove = false;
     await assert.rejects(
       () =>
@@ -1036,22 +1086,6 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     assert.match(skillMessage, /# Code Audit/, "typing the command loads the skill without the approval prompt");
     assert.match(skillMessage, /action "read_file"/, "points the model at the supporting files");
     assert.ok(skillMessage.endsWith("\n\nsrc/"), "arguments follow the skill");
-
-    const dirListing = JSON.parse(
-      (
-        await skillsTool.execute(
-          "c-11",
-          { action: "directory", server: "pure26", uri: "skill://code-audit" },
-          undefined,
-          undefined,
-          ctx,
-        )
-      ).content[0].text,
-    );
-    assert.deepEqual(
-      dirListing.resources.map((r: any) => r.name).sort(),
-      ["SKILL.md", "references"],
-    );
 
     const loadedSkill = await skillsTool.execute(
       "c-12",
@@ -1125,6 +1159,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
       /size mismatch|SHA-256 digest mismatch/,
     );
   } finally {
+    delete process.env.PI_MCP_EXT_SKILL_AUTO_APPROVE;
     await runnerMod.emitSessionShutdownEvent(runner, { type: "session_shutdown", reason: "quit" });
     if (prevAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
     else process.env.PI_CODING_AGENT_DIR = prevAgentDir;
@@ -1486,6 +1521,12 @@ test("9. Adversarial review regressions: synchronous MRTR input_required (reques
       () => skills.load("mrtr-srv", "skill://dyn-skill/SKILL.md"),
       /interactive user approval is required/,
     );
+    await assert.rejects(
+      () => skills.load("mrtr-srv", "skill://other-skill/SKILL.md", { autoApprove: true }),
+      /auto-approval covers only the requested skill/,
+    );
+    const autoLoaded = await skills.load("mrtr-srv", "skill://dyn-skill/SKILL.md", { autoApprove: true });
+    assert.equal(autoLoaded.uri, "skill://dyn-skill/SKILL.md");
     await skills.load("mrtr-srv", "skill://dyn-skill/SKILL.md", {
       approve: async () => true,
     });
